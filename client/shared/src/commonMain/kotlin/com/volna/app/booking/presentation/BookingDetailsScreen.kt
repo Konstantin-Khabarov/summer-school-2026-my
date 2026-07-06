@@ -176,7 +176,7 @@ private fun BookingDetailsEventCard(
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
         Box {
-            BookingPreviewPhoto()
+            BookingPreviewPhoto(booking.slotId)
             BookingStatusPill(
                 status = status,
                 modifier = Modifier

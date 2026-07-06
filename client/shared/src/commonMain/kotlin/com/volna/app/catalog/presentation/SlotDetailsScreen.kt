@@ -1,6 +1,7 @@
 package com.volna.app.catalog.presentation
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,6 +35,7 @@ import com.volna.app.uikit.icons.Back
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Share
 import com.volna.app.uikit.icons.VolnaIcon
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun SlotDetailsScreen(
@@ -95,7 +98,7 @@ private fun SlotDetailsContent(
     val availability = AvailabilityPolicy.availability(slot)
     Column(Modifier.fillMaxSize()) {
         Box {
-            SlotDetailsHero()
+            SlotDetailsHero(slot.id)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,21 +132,18 @@ private fun SlotDetailsContent(
 }
 
 @Composable
-private fun SlotDetailsHero() {
+private fun SlotDetailsHero(slotId: SlotId) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(188.dp)
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xFFC8E5E8),
-                        Color(0xFFF5ECD2),
-                        Color(0xFFABC7CF),
-                    ),
-                ),
-            ),
+            .height(188.dp),
     ) {
+        Image(
+            painter = painterResource(slotId.toPreviewPhoto()),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()

@@ -1,5 +1,6 @@
 package com.volna.app.booking.presentation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,18 +14,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.volna.app.catalog.presentation.toPreviewPhoto
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.BookingId
+import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.policy.BookingPriceCalculator
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun BookingListScreen(
@@ -242,7 +247,7 @@ private fun BookingCard(
             .padding(VolnaTheme.tokens.spacing.md),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
-        BookingPreviewPhoto()
+        BookingPreviewPhoto(booking.slotId)
         Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
             Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
                 slot?.let {
@@ -292,17 +297,15 @@ private fun BookingCard(
 }
 
 @Composable
-internal fun BookingPreviewPhoto() {
-    Box(
+internal fun BookingPreviewPhoto(slotId: SlotId) {
+    Image(
+        painter = painterResource(slotId.toPreviewPhoto()),
+        contentDescription = null,
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFFD8EEF0), Color(0xFFF7F0D8), Color(0xFFCFE4E8)),
-                ),
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
-            ),
+            .clip(RoundedCornerShape(VolnaTheme.tokens.radius.lg)),
+        contentScale = ContentScale.Crop,
     )
 }
 

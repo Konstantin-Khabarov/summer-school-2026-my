@@ -21,6 +21,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.domain.model.RouteType
+import com.volna.app.domain.model.SlotId
+import com.volna.app.resources.Res
+import com.volna.app.resources.slot_photo_1
+import com.volna.app.resources.slot_photo_10
+import com.volna.app.resources.slot_photo_2
+import com.volna.app.resources.slot_photo_3
+import com.volna.app.resources.slot_photo_4
+import com.volna.app.resources.slot_photo_5
+import com.volna.app.resources.slot_photo_6
+import com.volna.app.resources.slot_photo_7
+import com.volna.app.resources.slot_photo_8
+import com.volna.app.resources.slot_photo_9
 import com.volna.app.uikit.icons.Back
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.VolnaIcon
@@ -28,6 +40,23 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.DrawableResource
+
+private val slotPreviewPhotos: List<DrawableResource> = listOf(
+    Res.drawable.slot_photo_1,
+    Res.drawable.slot_photo_2,
+    Res.drawable.slot_photo_3,
+    Res.drawable.slot_photo_4,
+    Res.drawable.slot_photo_5,
+    Res.drawable.slot_photo_6,
+    Res.drawable.slot_photo_7,
+    Res.drawable.slot_photo_8,
+    Res.drawable.slot_photo_9,
+    Res.drawable.slot_photo_10,
+)
+
+internal fun SlotId.toPreviewPhoto(): DrawableResource =
+    slotPreviewPhotos[value.hashCode().mod(slotPreviewPhotos.size)]
 
 @Composable
 internal fun SkeletonCard(
