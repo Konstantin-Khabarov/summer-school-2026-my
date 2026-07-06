@@ -24,7 +24,8 @@ actual object PlatformMapLauncher : MapLauncher {
     actual override fun buildRouteTo(meetingPoint: MeetingPoint) {
         val lat = meetingPoint.coordinates.lat
         val lng = meetingPoint.coordinates.lng
-        val routeUri = Uri.parse("google.navigation:q=$lat,$lng")
+        val label = Uri.encode(meetingPoint.title.ifBlank { "SUP meeting point" })
+        val routeUri = Uri.parse("geo:$lat,$lng?q=$lat,$lng($label)")
         open(routeUri)
     }
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	httpapi "summer-school-2026/backend/internal/http"
@@ -188,15 +189,28 @@ func slotBase(slot postgres.Slot) (slotBaseDTO, error) {
 	if err != nil {
 		return slotBaseDTO{}, err
 	}
+	route := slotsapi.Route{
+		Id:          routeID,
+		Name:        slot.RouteName,
+		Type:        slotsapi.RouteType(slot.RouteType),
+		CapacityCap: slot.RouteCapacityCap,
+		DurationMin: slot.RouteDurationMin,
+	}
+	if len(slot.RouteGeometry) > 0 {
+		var points [][]float32
+		if err := json.Unmarshal(slot.RouteGeometry, &points); err != nil {
+			return slotBaseDTO{}, err
+		}
+		var geometry slotsapi.Geometry
+		if err := geometry.FromGeometry0(points); err != nil {
+			return slotBaseDTO{}, err
+		}
+		route.Geometry = &geometry
+	}
+
 	return slotBaseDTO{
-		id: slotID,
-		route: slotsapi.Route{
-			Id:          routeID,
-			Name:        slot.RouteName,
-			Type:        slotsapi.RouteType(slot.RouteType),
-			CapacityCap: slot.RouteCapacityCap,
-			DurationMin: slot.RouteDurationMin,
-		},
+		id:         slotID,
+		route:      route,
 		instructor: slotsapi.Instructor{Id: instructorID, Name: slot.InstructorName},
 	}, nil
 }

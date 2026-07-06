@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -232,9 +233,21 @@ func bookingSlotDTO(value booking.Slot) (bookingsapi.Slot, error) {
 	if err != nil {
 		return bookingsapi.Slot{}, err
 	}
+	route := bookingsapi.Route{Id: routeID, Name: value.RouteName, Type: bookingsapi.RouteType(value.RouteType), CapacityCap: value.RouteCapacityCap, DurationMin: value.RouteDurationMin}
+	if len(value.RouteGeometry) > 0 {
+		var points [][]float32
+		if err := json.Unmarshal(value.RouteGeometry, &points); err != nil {
+			return bookingsapi.Slot{}, err
+		}
+		var geometry bookingsapi.Geometry
+		if err := geometry.FromGeometry0(points); err != nil {
+			return bookingsapi.Slot{}, err
+		}
+		route.Geometry = &geometry
+	}
 	return bookingsapi.Slot{
 		Id:               slotID,
-		Route:            bookingsapi.Route{Id: routeID, Name: value.RouteName, Type: bookingsapi.RouteType(value.RouteType), CapacityCap: value.RouteCapacityCap, DurationMin: value.RouteDurationMin},
+		Route:            route,
 		Instructor:       bookingsapi.Instructor{Id: instructorID, Name: value.InstructorName},
 		StartAt:          value.StartAt,
 		TotalSeats:       value.TotalSeats,

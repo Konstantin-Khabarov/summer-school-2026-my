@@ -127,7 +127,7 @@ fun RouteMapSheet(
                 ),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             ) {
-                Text("Открыть в Яндекс.Картах")
+                Text("Открыть в картах")
             }
         }
     }

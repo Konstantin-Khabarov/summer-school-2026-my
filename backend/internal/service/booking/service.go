@@ -48,6 +48,7 @@ type Slot struct {
 	RouteType        string
 	RouteCapacityCap int
 	RouteDurationMin int
+	RouteGeometry    []byte
 	InstructorID     string
 	InstructorName   string
 	StartAt          time.Time

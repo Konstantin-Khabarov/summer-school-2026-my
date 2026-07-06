@@ -7,10 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -19,8 +16,10 @@ import com.volna.app.core.time.AppClock
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.BookingId
+import com.volna.app.domain.model.GeoPoint
 import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.domain.policy.CancellationKind
+import com.volna.app.map.RouteMapArtwork
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Info
@@ -119,6 +118,8 @@ private fun BookingDetailsContent(
         slot?.let {
             BookingDetailsMapCard(
                 address = it.meetingPoint.title.ifBlank { "уточняется" },
+                routePoints = it.route.geometry?.points.orEmpty(),
+                meetingPoint = it.meetingPoint.coordinates,
                 onOpenMap = { onIntent(BookingDetailsIntent.OpenRouteMap) },
             )
         }
@@ -232,6 +233,8 @@ private fun BookingStatusPill(
 @Composable
 private fun BookingDetailsMapCard(
     address: String,
+    routePoints: List<GeoPoint>,
+    meetingPoint: GeoPoint,
     onOpenMap: () -> Unit,
 ) {
     Column(
@@ -251,57 +254,17 @@ private fun BookingDetailsMapCard(
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
-        BookingDetailsMapPreview()
+        RouteMapArtwork(
+            routePoints = routePoints,
+            meetingPoint = meetingPoint,
+            height = 156.dp,
+        )
         Text(
             text = "Открыть карту",
             modifier = Modifier.clickable { onOpenMap() },
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFF0093CC),
         )
-    }
-}
-
-@Composable
-private fun BookingDetailsMapPreview() {
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(156.dp)
-            .background(Color.White, RoundedCornerShape(VolnaTheme.tokens.radius.sm)),
-    ) {
-        val corner = 12.dp.toPx()
-        drawRoundRect(Color(0xFF8AD0F0), cornerRadius = CornerRadius(corner, corner))
-        drawRoundRect(
-            color = Color(0xFFDDF3CC),
-            topLeft = Offset(size.width * 0.02f, 0f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.22f, size.height),
-            cornerRadius = CornerRadius(corner, corner),
-        )
-        drawRoundRect(
-            color = Color(0xFFDDF3CC),
-            topLeft = Offset(size.width * 0.84f, 0f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.16f, size.height),
-            cornerRadius = CornerRadius(corner, corner),
-        )
-        listOf(0.22f, 0.50f, 0.78f).forEach { y ->
-            drawLine(
-                color = Color(0xFFF9F6F0),
-                start = Offset(0f, size.height * y),
-                end = Offset(size.width, size.height * (y - 0.12f)),
-                strokeWidth = 6.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-        }
-        val routePoints = listOf(
-            Offset(size.width * 0.34f, size.height * 0.88f),
-            Offset(size.width * 0.48f, size.height * 0.58f),
-            Offset(size.width * 0.62f, size.height * 0.36f),
-        )
-        routePoints.zipWithNext().forEach { (start, end) ->
-            drawLine(Color(0xFF00A59D), start, end, strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
-        }
-        drawCircle(Color(0xFFFF6B4A), radius = 6.dp.toPx(), center = routePoints.first())
-        drawCircle(Color.White, radius = 2.5.dp.toPx(), center = routePoints.first())
     }
 }
 
