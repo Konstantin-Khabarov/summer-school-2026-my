@@ -39,6 +39,7 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material3)
             implementation(compose.ui)
+            implementation(compose.components.resources)
             implementation(libs.coroutines.core)
             implementation(libs.datetime)
             implementation(libs.koin.core)
@@ -68,6 +69,11 @@ kotlin {
             implementation(libs.ktor.client.js)
         }
     }
+}
+
+compose.resources {
+    publicResClass = false
+    packageOfResClass = "com.volna.app.resources"
 }
 
 android {

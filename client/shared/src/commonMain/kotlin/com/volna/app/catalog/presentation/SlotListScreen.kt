@@ -1,5 +1,6 @@
 package com.volna.app.catalog.presentation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,8 +12,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,9 +25,22 @@ import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
+import com.volna.app.domain.model.SlotId
+import com.volna.app.resources.Res
+import com.volna.app.resources.slot_photo_1
+import com.volna.app.resources.slot_photo_10
+import com.volna.app.resources.slot_photo_2
+import com.volna.app.resources.slot_photo_3
+import com.volna.app.resources.slot_photo_4
+import com.volna.app.resources.slot_photo_5
+import com.volna.app.resources.slot_photo_6
+import com.volna.app.resources.slot_photo_7
+import com.volna.app.resources.slot_photo_8
+import com.volna.app.resources.slot_photo_9
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Tune
 import com.volna.app.uikit.icons.VolnaIcon
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun SlotListScreen(
@@ -423,7 +439,7 @@ private fun SlotCard(
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
-            SlotPreviewPhoto()
+            SlotPreviewPhoto(slot.id)
             Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
                     SlotTag(
@@ -488,23 +504,35 @@ private fun SlotCard(
     }
 }
 
+private val slotPreviewPhotos = listOf(
+    Res.drawable.slot_photo_1,
+    Res.drawable.slot_photo_2,
+    Res.drawable.slot_photo_3,
+    Res.drawable.slot_photo_4,
+    Res.drawable.slot_photo_5,
+    Res.drawable.slot_photo_6,
+    Res.drawable.slot_photo_7,
+    Res.drawable.slot_photo_8,
+    Res.drawable.slot_photo_9,
+    Res.drawable.slot_photo_10,
+)
+
+private fun SlotId.toPreviewPhoto() = slotPreviewPhotos[value.hashCode().mod(slotPreviewPhotos.size)]
+
 @Composable
-private fun SlotPreviewPhoto() {
+private fun SlotPreviewPhoto(slotId: SlotId) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xFFD8EEF0),
-                        Color(0xFFF7F0D8),
-                        Color(0xFFCFE4E8),
-                    ),
-                ),
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
-            ),
+            .clip(RoundedCornerShape(VolnaTheme.tokens.radius.lg)),
     ) {
+        Image(
+            painter = painterResource(slotId.toPreviewPhoto()),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -514,7 +542,6 @@ private fun SlotPreviewPhoto() {
                     brush = Brush.verticalGradient(
                         colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.36f)),
                     ),
-                    shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
                 ),
         )
     }
