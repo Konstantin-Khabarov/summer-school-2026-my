@@ -41,51 +41,55 @@ WHERE s.token_hash = $1
 	return client, true, nil
 }
 
-func (r *BookingRepository) Create(ctx context.Context, clientID string, command booking.CreateCommand, requestHash string, now time.Time) (booking.Booking, error) {
+func (r *BookingRepository) Create(ctx context.Context, clientID string, command booking.CreateCommand, requestHash string, now time.Time) (booking.Booking, bool, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return booking.Booking{}, fmt.Errorf("begin create booking: %w", err)
+		return booking.Booking{}, false, fmt.Errorf("begin create booking: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
 	if command.IdempotencyKey != "" {
 		existing, ok, err := lockIdempotencyKey(ctx, tx, clientID, command.IdempotencyKey)
 		if err != nil {
-			return booking.Booking{}, err
+			return booking.Booking{}, false, err
 		}
 		if ok {
 			if existing.RequestHash != requestHash {
-				return booking.Booking{}, booking.ErrIdempotencyConflict
+				return booking.Booking{}, false, booking.ErrIdempotencyConflict
 			}
 			if existing.BookingID != "" {
 				created, found, err := bookingByID(ctx, tx, existing.BookingID)
 				if err != nil {
-					return booking.Booking{}, err
+					return booking.Booking{}, false, err
 				}
 				if found {
-					if err := tx.Commit(ctx); err != nil {
-						return booking.Booking{}, fmt.Errorf("commit idempotent booking: %w", err)
+					isFirst, err := isFirstBookingForClient(ctx, tx, clientID, existing.BookingID)
+					if err != nil {
+						return booking.Booking{}, false, err
 					}
-					return created, nil
+					if err := tx.Commit(ctx); err != nil {
+						return booking.Booking{}, false, fmt.Errorf("commit idempotent booking: %w", err)
+					}
+					return created, isFirst, nil
 				}
 			}
 		} else if err := insertIdempotencyKey(ctx, tx, clientID, command.IdempotencyKey, requestHash, now); err != nil {
-			return booking.Booking{}, err
+			return booking.Booking{}, false, err
 		}
 	}
 
 	slot, err := lockSlot(ctx, tx, command.SlotID)
 	if err != nil {
-		return booking.Booking{}, err
+		return booking.Booking{}, false, err
 	}
 	if slot.Status == "cancelled" {
-		return booking.Booking{}, booking.AvailabilityError{Err: booking.ErrSlotCancelled, Availability: booking.Availability{AvailableSeats: slot.FreeSeats, AvailableRentalBoards: slot.FreeRentalBoards}}
+		return booking.Booking{}, false, booking.AvailabilityError{Err: booking.ErrSlotCancelled, Availability: booking.Availability{AvailableSeats: slot.FreeSeats, AvailableRentalBoards: slot.FreeRentalBoards}}
 	}
 	if !now.Before(slot.StartAt) {
-		return booking.Booking{}, booking.ErrSlotStarted
+		return booking.Booking{}, false, booking.ErrSlotStarted
 	}
 	if slot.FreeSeats < command.SeatsCount || slot.FreeRentalBoards < command.RentalCount {
-		return booking.Booking{}, booking.AvailabilityError{Err: booking.ErrSlotFull, Availability: booking.Availability{AvailableSeats: slot.FreeSeats, AvailableRentalBoards: slot.FreeRentalBoards}}
+		return booking.Booking{}, false, booking.AvailabilityError{Err: booking.ErrSlotFull, Availability: booking.Availability{AvailableSeats: slot.FreeSeats, AvailableRentalBoards: slot.FreeRentalBoards}}
 	}
 
 	var alreadyBooked bool
@@ -94,10 +98,10 @@ SELECT EXISTS (
     SELECT 1 FROM bookings
     WHERE client_id = $1 AND slot_id = $2 AND status = 'active'
 )`, clientID, command.SlotID).Scan(&alreadyBooked); err != nil {
-		return booking.Booking{}, fmt.Errorf("check double booking: %w", err)
+		return booking.Booking{}, false, fmt.Errorf("check double booking: %w", err)
 	}
 	if alreadyBooked {
-		return booking.Booking{}, booking.ErrDoubleBooking
+		return booking.Booking{}, false, booking.ErrDoubleBooking
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -105,7 +109,7 @@ UPDATE slots
 SET free_seats = free_seats - $2,
     free_rental_boards = free_rental_boards - $3
 WHERE id = $1`, command.SlotID, command.SeatsCount, command.RentalCount); err != nil {
-		return booking.Booking{}, fmt.Errorf("update slot availability: %w", err)
+		return booking.Booking{}, false, fmt.Errorf("update slot availability: %w", err)
 	}
 
 	var bookingID string
@@ -116,37 +120,55 @@ VALUES ($1, $2, $3, $4, 'active', $5)
 RETURNING id::text, created_at`, command.SlotID, clientID, command.SeatsCount, command.RentalCount, now).Scan(&bookingID, &createdAt)
 	if err != nil {
 		if isUniqueViolation(err) {
-			return booking.Booking{}, booking.ErrDoubleBooking
+			return booking.Booking{}, false, booking.ErrDoubleBooking
 		}
-		return booking.Booking{}, fmt.Errorf("insert booking: %w", err)
+		return booking.Booking{}, false, fmt.Errorf("insert booking: %w", err)
 	}
 
 	created, found, err := bookingByID(ctx, tx, bookingID)
 	if err != nil {
-		return booking.Booking{}, err
+		return booking.Booking{}, false, err
 	}
 	if !found {
-		return booking.Booking{}, fmt.Errorf("created booking not found")
+		return booking.Booking{}, false, fmt.Errorf("created booking not found")
 	}
 	created.CreatedAt = createdAt
+
+	isFirst, err := isFirstBookingForClient(ctx, tx, clientID, bookingID)
+	if err != nil {
+		return booking.Booking{}, false, err
+	}
 
 	if command.IdempotencyKey != "" {
 		body, err := json.Marshal(map[string]string{"booking_id": bookingID})
 		if err != nil {
-			return booking.Booking{}, fmt.Errorf("marshal idempotency response: %w", err)
+			return booking.Booking{}, false, fmt.Errorf("marshal idempotency response: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `
 UPDATE idempotency_keys
 SET response_status = 201, response_body = $4
 WHERE client_id = $1 AND key = $2 AND request_hash = $3`, clientID, command.IdempotencyKey, requestHash, body); err != nil {
-			return booking.Booking{}, fmt.Errorf("store idempotency response: %w", err)
+			return booking.Booking{}, false, fmt.Errorf("store idempotency response: %w", err)
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return booking.Booking{}, fmt.Errorf("commit create booking: %w", err)
+		return booking.Booking{}, false, fmt.Errorf("commit create booking: %w", err)
 	}
-	return created, nil
+	return created, isFirst, nil
+}
+
+// isFirstBookingForClient reports whether bookingID is the only booking the client has ever made (R-006).
+func isFirstBookingForClient(ctx context.Context, tx pgx.Tx, clientID, bookingID string) (bool, error) {
+	var isFirst bool
+	err := tx.QueryRow(ctx, `
+SELECT NOT EXISTS (
+    SELECT 1 FROM bookings WHERE client_id = $1 AND id != $2
+)`, clientID, bookingID).Scan(&isFirst)
+	if err != nil {
+		return false, fmt.Errorf("check first booking: %w", err)
+	}
+	return isFirst, nil
 }
 
 func (r *BookingRepository) List(ctx context.Context, clientID string, command booking.ListCommand) (booking.BookingList, error) {

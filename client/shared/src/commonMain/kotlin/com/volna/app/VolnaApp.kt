@@ -89,7 +89,7 @@ fun VolnaApp() {
                     authState.step != com.volna.app.auth.presentation.AuthStep.Phone
                 slotListState.filtersVisible -> true
                 slotDetailsState.showRouteMap -> true
-                bookingFormState.createdBooking != null -> true
+                currentDestination?.hasRoute<BookingSuccessDestination>() == true -> true
                 bookingDetailsState.showCancelConfirm -> true
                 bookingDetailsState.showRouteMap -> true
                 profileState.logoutConfirmVisible -> true
@@ -130,10 +130,8 @@ fun VolnaApp() {
                     true
                 }
 
-                bookingFormState.createdBooking != null -> {
-                    bookingFormStore.accept(BookingFormIntent.SuccessDismissed)
-                    true
-                }
+                // BS-002: no free dismiss via system back — exit only via "Готово"/"Мои бронирования".
+                currentDestination?.hasRoute<BookingSuccessDestination>() == true -> true
 
                 bookingDetailsState.showCancelConfirm -> {
                     bookingDetailsStore.accept(BookingDetailsIntent.DismissCancel)
@@ -268,6 +266,10 @@ fun VolnaApp() {
             while (true) {
                 when (bookingFormStore.effects()) {
                     BookingFormEffect.SignedOut -> resetToAuth()
+                    BookingFormEffect.BookingCreated -> navController.navigate(BookingSuccessDestination) {
+                        popUpTo<SlotBookingDestination> { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             }
         }

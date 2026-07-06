@@ -27,6 +27,10 @@ import com.volna.app.core.time.SystemAppClock
 import com.volna.app.profile.ProfileRepository
 import com.volna.app.profile.data.KtorProfileRepository
 import com.volna.app.profile.presentation.ProfileStore
+import com.volna.app.push.PushPreferences
+import com.volna.app.push.PushRepository
+import com.volna.app.push.PlatformPushPreferences
+import com.volna.app.push.data.KtorPushRepository
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -52,12 +56,14 @@ val volnaAppModule = module {
     single<InstructorRepository> { KtorInstructorRepository(get()) }
     single<BookingRepository> { KtorBookingRepository(get()) }
     single<IdempotencyKeyFactory> { RandomIdempotencyKeyFactory() }
+    single<PushRepository> { KtorPushRepository(get()) }
+    single<PushPreferences> { PlatformPushPreferences }
 
     viewModel { AuthStore(get(), get()) }
-    viewModel { ProfileStore(get(), get()) }
+    viewModel { ProfileStore(get(), get(), get(), get()) }
     viewModel { SlotListStore(get(), get()) }
     viewModel { SlotDetailsStore(get()) }
-    viewModel { BookingFormStore(get(), get()) }
+    viewModel { BookingFormStore(get(), get(), get(), get()) }
     viewModel { BookingListStore(get(), get()) }
     viewModel { BookingDetailsStore(get(), get()) }
 }

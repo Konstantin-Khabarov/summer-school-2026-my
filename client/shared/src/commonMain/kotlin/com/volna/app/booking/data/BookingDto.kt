@@ -43,4 +43,6 @@ data class BookingDto(
     val slot: SlotDto? = null,
     @SerialName("is_first_booking")
     val isFirstBooking: Boolean? = null,
+    @SerialName("reminder_hours")
+    val reminderHours: List<Int>? = null,
 )

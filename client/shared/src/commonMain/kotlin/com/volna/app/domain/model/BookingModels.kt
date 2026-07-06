@@ -20,6 +20,7 @@ data class Booking(
     val cancelledAt: Instant?,
     val slot: Slot?,
     val isFirstBooking: Boolean?,
+    val reminderHours: List<Int>? = null,
 )
 
 data class BookingDraft(

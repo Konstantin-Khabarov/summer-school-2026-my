@@ -11,7 +11,7 @@ func TestCreateRejectsInvalidCountsBeforeRepositoryLookup(t *testing.T) {
 	repo := &fakeRepo{clientFound: true}
 	service := NewService(repo)
 
-	_, err := service.Create(context.Background(), CreateCommand{Token: "token", SlotID: "slot", SeatsCount: 4, RentalCount: 0})
+	_, _, err := service.Create(context.Background(), CreateCommand{Token: "token", SlotID: "slot", SeatsCount: 4, RentalCount: 0})
 	if !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("Create() error = %v, want %v", err, ErrInvalidRequest)
 	}
@@ -23,7 +23,7 @@ func TestCreateRejectsInvalidCountsBeforeRepositoryLookup(t *testing.T) {
 func TestCreateRejectsUnauthorizedToken(t *testing.T) {
 	service := NewService(&fakeRepo{clientFound: false})
 
-	_, err := service.Create(context.Background(), CreateCommand{Token: "token", SlotID: "slot", SeatsCount: 1, RentalCount: 0})
+	_, _, err := service.Create(context.Background(), CreateCommand{Token: "token", SlotID: "slot", SeatsCount: 1, RentalCount: 0})
 	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("Create() error = %v, want %v", err, ErrUnauthorized)
 	}
@@ -58,8 +58,8 @@ func (r *fakeRepo) ClientBySessionTokenHash(context.Context, string) (Client, bo
 	return Client{ID: "client-id"}, r.clientFound, nil
 }
 
-func (r *fakeRepo) Create(context.Context, string, CreateCommand, string, time.Time) (Booking, error) {
-	return Booking{}, nil
+func (r *fakeRepo) Create(context.Context, string, CreateCommand, string, time.Time) (Booking, bool, error) {
+	return Booking{}, false, nil
 }
 
 func (r *fakeRepo) List(context.Context, string, ListCommand) (BookingList, error) {

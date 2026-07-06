@@ -7,6 +7,8 @@ import com.volna.app.VolnaApp
 import com.volna.app.core.storage.PlatformSessionStorage
 import com.volna.app.di.initKoin
 import com.volna.app.map.PlatformMapLauncher
+import com.volna.app.push.PlatformPushPermission
+import com.volna.app.push.PlatformPushPreferences
 import timber.log.Timber
 
 class MainActivity : ComponentActivity() {
@@ -17,6 +19,8 @@ class MainActivity : ComponentActivity() {
         }
         PlatformSessionStorage.initialize(applicationContext)
         PlatformMapLauncher.initialize(applicationContext)
+        PlatformPushPreferences.initialize(applicationContext)
+        PlatformPushPermission.initialize(this)
         initKoin()
         setContent {
             VolnaApp()

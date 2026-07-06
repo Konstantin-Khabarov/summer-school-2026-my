@@ -17,12 +17,20 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
+// PushHandler is hand-wired (not part of the generated ServerInterface set) —
+// see internal/http/handlers/push.go for why.
+type PushHandler interface {
+	RegisterPushToken(w http.ResponseWriter, r *http.Request)
+	DeletePushToken(w http.ResponseWriter, r *http.Request)
+}
+
 type RouterOptions struct {
 	Auth        authapi.ServerInterface
 	Profile     profileapi.ServerInterface
 	Bookings    bookingsapi.ServerInterface
 	Slots       slotsapi.ServerInterface
 	Instructors instructorsapi.ServerInterface
+	Push        PushHandler
 }
 
 func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
@@ -61,6 +69,10 @@ func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
 	}
 	if opts.Instructors != nil {
 		instructorsapi.HandlerWithOptions(opts.Instructors, instructorsapi.ChiServerOptions{BaseRouter: router, ErrorHandlerFunc: OpenAPIErrorHandler})
+	}
+	if opts.Push != nil {
+		router.Post("/auth/push-tokens", opts.Push.RegisterPushToken)
+		router.Delete("/auth/push-tokens", opts.Push.DeletePushToken)
 	}
 
 	return router

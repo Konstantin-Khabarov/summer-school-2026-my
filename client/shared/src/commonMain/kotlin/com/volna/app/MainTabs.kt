@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import com.volna.app.booking.presentation.BookingFormState
 import com.volna.app.booking.presentation.BookingListIntent
 import com.volna.app.booking.presentation.BookingListScreen
 import com.volna.app.booking.presentation.BookingListState
+import com.volna.app.booking.presentation.BookingSuccessScreen
 import com.volna.app.catalog.presentation.SlotDetailsIntent
 import com.volna.app.catalog.presentation.SlotDetailsScreen
 import com.volna.app.catalog.presentation.SlotDetailsState
@@ -142,6 +144,24 @@ internal fun MainTabs(
                             state = bookingFormState,
                             onIntent = onBookingFormIntent,
                             onBack = { navController.popBackStack() },
+                        )
+                    }
+                }
+
+                composable<BookingSuccessDestination> {
+                    val booking = bookingFormState.createdBooking
+                    if (booking == null) {
+                        LaunchedEffect(Unit) {
+                            navController.navigate(SlotsDestination) {
+                                popUpTo<SlotsDestination> { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    } else {
+                        BookingSuccessScreen(
+                            booking = booking,
+                            fallbackPrice = bookingFormState.totalPrice?.value ?: 0,
+                            onRequestPushPermission = { onBookingFormIntent(BookingFormIntent.RequestPushPermission) },
                             onDone = {
                                 onBookingFormIntent(BookingFormIntent.SuccessDismissed)
                                 onSlotListIntent(SlotListIntent.Retry)
@@ -206,7 +226,6 @@ internal fun MainTabs(
                     currentDestination = currentDestination,
                     slotListState = slotListState,
                     slotDetailsState = slotDetailsState,
-                    bookingFormState = bookingFormState,
                     bookingDetailsState = bookingDetailsState,
                     profileState = profileState,
                 )
@@ -233,17 +252,16 @@ private fun isNavBarVisible(
     currentDestination: NavDestination?,
     slotListState: SlotListState,
     slotDetailsState: SlotDetailsState,
-    bookingFormState: BookingFormState,
     bookingDetailsState: BookingDetailsState,
     profileState: ProfileState,
 ): Boolean = when {
     currentDestination?.hasRoute<AuthDestination>() == true -> false
     currentDestination?.hasRoute<SlotDetailsDestination>() == true -> false
     currentDestination?.hasRoute<SlotBookingDestination>() == true -> false
+    currentDestination?.hasRoute<BookingSuccessDestination>() == true -> false
     currentDestination?.hasRoute<BookingDetailsDestination>() == true -> false
     slotListState.filtersVisible -> false
     slotDetailsState.showRouteMap -> false
-    bookingFormState.createdBooking != null -> false
     bookingDetailsState.showCancelConfirm -> false
     bookingDetailsState.showRouteMap -> false
     profileState.logoutConfirmVisible -> false

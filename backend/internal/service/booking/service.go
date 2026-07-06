@@ -99,11 +99,15 @@ func (e AvailabilityError) Unwrap() error { return e.Err }
 
 type Repository interface {
 	ClientBySessionTokenHash(ctx context.Context, tokenHash string) (Client, bool, error)
-	Create(ctx context.Context, clientID string, command CreateCommand, requestHash string, now time.Time) (Booking, error)
+	Create(ctx context.Context, clientID string, command CreateCommand, requestHash string, now time.Time) (Booking, bool, error)
 	List(ctx context.Context, clientID string, command ListCommand) (BookingList, error)
 	Get(ctx context.Context, clientID, bookingID string) (Booking, error)
 	Cancel(ctx context.Context, clientID, bookingID string, now time.Time) (Booking, error)
 }
+
+// ReminderHours is the canonical MVP reminder timing (LOGIC-007, R-006): server-owned config,
+// never hardcoded on the client.
+var ReminderHours = []int{24, 2}
 
 type Service struct {
 	repo Repository
@@ -114,14 +118,14 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo, now: time.Now}
 }
 
-func (s *Service) Create(ctx context.Context, command CreateCommand) (Booking, error) {
+func (s *Service) Create(ctx context.Context, command CreateCommand) (Booking, bool, error) {
 	if command.SeatsCount < 1 || command.SeatsCount > 3 || command.RentalCount < 0 || command.RentalCount > command.SeatsCount || command.SlotID == "" {
-		return Booking{}, ErrInvalidRequest
+		return Booking{}, false, ErrInvalidRequest
 	}
 
 	client, err := s.currentClient(ctx, command.Token)
 	if err != nil {
-		return Booking{}, err
+		return Booking{}, false, err
 	}
 
 	return s.repo.Create(ctx, client.ID, command, requestHash(command), s.now().UTC())

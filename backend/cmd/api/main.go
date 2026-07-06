@@ -16,6 +16,7 @@ import (
 	"summer-school-2026/backend/internal/service/auth"
 	"summer-school-2026/backend/internal/service/booking"
 	"summer-school-2026/backend/internal/service/profile"
+	"summer-school-2026/backend/internal/service/push"
 	"summer-school-2026/backend/internal/storage/postgres"
 )
 
@@ -48,6 +49,8 @@ func main() {
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	slotHandler := handlers.NewSlotHandler(postgres.NewSlotRepository(db))
 	instructorHandler := handlers.NewInstructorHandler(postgres.NewInstructorRepository(db))
+	pushService := push.NewService(postgres.NewPushTokenRepository(db))
+	pushHandler := handlers.NewPushHandler(pushService)
 
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
@@ -57,6 +60,7 @@ func main() {
 			Bookings:    bookingHandler,
 			Slots:       slotHandler,
 			Instructors: instructorHandler,
+			Push:        pushHandler,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

@@ -35,7 +35,7 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request, p
 	if params.IdempotencyKey != nil {
 		idempotencyKey = params.IdempotencyKey.String()
 	}
-	created, err := h.service.Create(r.Context(), booking.CreateCommand{
+	created, isFirstBooking, err := h.service.Create(r.Context(), booking.CreateCommand{
 		Token:          token,
 		IdempotencyKey: idempotencyKey,
 		SlotID:         req.SlotId.String(),
@@ -51,7 +51,19 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request, p
 		httpapi.WriteError(w, http.StatusInternalServerError, httpapi.CodeInternalError, "Что-то пошло не так. Попробуйте ещё раз позже.", nil)
 		return
 	}
-	httpapi.WriteJSON(w, http.StatusCreated, mapped)
+	httpapi.WriteJSON(w, http.StatusCreated, createBookingResponse{
+		Booking:        mapped,
+		IsFirstBooking: isFirstBooking,
+		ReminderHours:  booking.ReminderHours,
+	})
+}
+
+// createBookingResponse adds LOGIC-007's push-onboarding fields to the plain Booking DTO.
+// Hand-written rather than oapi-codegen'd — see internal/http/handlers/push.go for why.
+type createBookingResponse struct {
+	bookingsapi.Booking
+	IsFirstBooking bool  `json:"is_first_booking"`
+	ReminderHours  []int `json:"reminder_hours,omitempty"`
 }
 
 func (h *BookingHandler) ListBookings(w http.ResponseWriter, r *http.Request, params bookingsapi.ListBookingsParams) {

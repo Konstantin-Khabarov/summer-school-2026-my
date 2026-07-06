@@ -16,6 +16,9 @@ import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Client
 import com.volna.app.domain.model.Phone
 import com.volna.app.profile.ProfileRepository
+import com.volna.app.push.PushPreferences
+import com.volna.app.push.PushRepository
+import com.volna.app.push.PlatformPushPermission
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -84,6 +87,8 @@ sealed interface ProfileEffect {
 class ProfileStore(
     private val profileRepository: ProfileRepository,
     private val authRepository: AuthRepository,
+    private val pushRepository: PushRepository,
+    private val pushPreferences: PushPreferences,
     scope: CoroutineScope? = null,
 ) : ViewModel(), MviStore<ProfileState, ProfileIntent, ProfileEffect> {
     private val mutableState = MutableStateFlow(ProfileState())
@@ -388,6 +393,7 @@ class ProfileStore(
                     message = null,
                 )
             }
+            deleteRegisteredPushToken()
             authRepository.logout().fold(
                 onSuccess = {
                     mutableState.update { it.copy(actionStatus = ActionStatus.Idle) }
@@ -400,6 +406,13 @@ class ProfileStore(
                 },
             )
         }
+    }
+
+    // LOGIC-007: token is unregistered on logout/device unlink; failures are ignored (best effort).
+    private suspend fun deleteRegisteredPushToken() {
+        val token = pushPreferences.registeredToken() ?: return
+        pushRepository.deleteToken(token, PlatformPushPermission.platform)
+        pushPreferences.setRegisteredToken(null)
     }
 
     private fun deleteAccount() {

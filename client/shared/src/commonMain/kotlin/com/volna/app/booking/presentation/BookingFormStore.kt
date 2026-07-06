@@ -15,6 +15,10 @@ import com.volna.app.domain.model.*
 import com.volna.app.domain.policy.AvailabilityPolicy
 import com.volna.app.domain.policy.AvailabilityViolation
 import com.volna.app.domain.policy.BookingPriceCalculator
+import com.volna.app.push.PushPermissionResult
+import com.volna.app.push.PushPreferences
+import com.volna.app.push.PushRepository
+import com.volna.app.push.PlatformPushPermission
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,16 +78,20 @@ sealed interface BookingFormIntent {
     data object Submit : BookingFormIntent
     data object MessageShown : BookingFormIntent
     data object SuccessDismissed : BookingFormIntent
+    data object RequestPushPermission : BookingFormIntent
     data object Reset : BookingFormIntent
 }
 
 sealed interface BookingFormEffect {
     data object SignedOut : BookingFormEffect
+    data object BookingCreated : BookingFormEffect
 }
 
 class BookingFormStore(
     private val bookingRepository: BookingRepository,
     private val keyFactory: IdempotencyKeyFactory,
+    private val pushRepository: PushRepository,
+    private val pushPreferences: PushPreferences,
     scope: CoroutineScope? = null,
 ) : ViewModel(), MviStore<BookingFormState, BookingFormIntent, BookingFormEffect> {
     private val mutableState = MutableStateFlow(BookingFormState())
@@ -101,6 +109,7 @@ class BookingFormStore(
             BookingFormIntent.Submit -> submit()
             BookingFormIntent.MessageShown -> mutableState.update { it.copy(message = null) }
             BookingFormIntent.SuccessDismissed -> mutableState.update { it.copy(createdBooking = null) }
+            BookingFormIntent.RequestPushPermission -> requestPushPermissionIfNeeded()
             BookingFormIntent.Reset -> mutableState.value = BookingFormState()
         }
     }
@@ -204,12 +213,30 @@ class BookingFormStore(
                             idempotencyPayload = null,
                         )
                     }
+                    effects.send(BookingFormEffect.BookingCreated)
                 },
                 onFailure = { failure ->
                     AppLogger.e(failure, "Failed to create booking")
                     handleFailure(failure.asAppFailure())
                 },
             )
+        }
+    }
+
+    // LOGIC-007: request the system push permission exactly once, only after the client's
+    // first successful booking, on the BS-002 success screen.
+    private fun requestPushPermissionIfNeeded() {
+        val booking = mutableState.value.createdBooking ?: return
+        if (booking.isFirstBooking != true) return
+        storeScope.launch {
+            if (pushPreferences.isPermissionRequested()) return@launch
+            val result = PlatformPushPermission.requestPermission()
+            pushPreferences.markPermissionRequested()
+            if (result == PushPermissionResult.Authorized) {
+                val token = pushPreferences.deviceToken()
+                pushRepository.registerToken(token, PlatformPushPermission.platform)
+                    .onSuccess { pushPreferences.setRegisteredToken(token) }
+            }
         }
     }
 

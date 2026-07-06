@@ -33,6 +33,10 @@ internal data class SlotDetailsDestination(val slotId: String)
 internal data class SlotBookingDestination(val slotId: String)
 
 @Serializable
+@SerialName("booking-success")
+internal data object BookingSuccessDestination
+
+@Serializable
 @SerialName("bookings")
 internal data object BookingsDestination
 

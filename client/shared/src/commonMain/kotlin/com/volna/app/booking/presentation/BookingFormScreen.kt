@@ -29,8 +29,6 @@ fun BookingFormScreen(
     state: BookingFormState,
     onIntent: (BookingFormIntent) -> Unit,
     onBack: () -> Unit,
-    onDone: () -> Unit,
-    onOpenBookings: () -> Unit,
 ) {
     LaunchedEffect(slot.id) {
         onIntent(BookingFormIntent.Open(slot))
@@ -51,20 +49,10 @@ fun BookingFormScreen(
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
-        Box(modifier = Modifier.fillMaxSize()) {
-            BookingFormContent(
-                state = state,
-                onIntent = onIntent,
-            )
-            state.createdBooking?.let { booking ->
-                BookingSuccessSheet(
-                    booking = booking,
-                    fallbackPrice = state.totalPrice?.value ?: 0,
-                    onDone = onDone,
-                    onOpenBookings = onOpenBookings,
-                )
-            }
-        }
+        BookingFormContent(
+            state = state,
+            onIntent = onIntent,
+        )
     }
 }
 
@@ -398,14 +386,18 @@ private fun BookingPriceRow(
     }
 }
 
+// CMP-15 / BS-002: successful createBooking summary screen; no network requests on open.
 @Composable
-private fun BookingSuccessSheet(
+fun BookingSuccessScreen(
     booking: Booking,
     fallbackPrice: Int,
     onDone: () -> Unit,
     onOpenBookings: () -> Unit,
+    onRequestPushPermission: () -> Unit = {},
 ) {
-    // CMP-15 / BS-002: successful createBooking summary; no network requests on open.
+    // LOGIC-007: fires once when this screen appears; the store no-ops unless this is the
+    // client's first booking and the system push dialog hasn't been shown before.
+    LaunchedEffect(booking.id) { onRequestPushPermission() }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -428,6 +420,20 @@ private fun BookingSuccessSheet(
             fallbackPrice = fallbackPrice,
             modifier = Modifier.offset(y = 142.dp),
         )
+        if (booking.isFirstBooking == true) {
+            booking.reminderHours?.toReminderHint()?.let { hint ->
+                Text(
+                    text = hint,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = 156.dp)
+                        .padding(top = VolnaTheme.tokens.spacing.sm),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Spacer(Modifier.weight(1f))
         Button(
             onClick = onOpenBookings,
@@ -456,6 +462,11 @@ private fun BookingSuccessSheet(
                 .background(Color(0xFFCCCCCC), RoundedCornerShape(VolnaTheme.tokens.radius.pill)),
         )
     }
+}
+
+private fun List<Int>.toReminderHint(): String? {
+    if (isEmpty()) return null
+    return "Напомним за ${joinToString(" и ")} ч. до старта"
 }
 
 @Composable
