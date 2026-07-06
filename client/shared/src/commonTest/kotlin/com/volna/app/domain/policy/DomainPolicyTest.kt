@@ -3,20 +3,15 @@ package com.volna.app.domain.policy
 import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.BookingStatus
-import com.volna.app.domain.model.GeoPoint
-import com.volna.app.domain.model.Instructor
-import com.volna.app.domain.model.InstructorId
-import com.volna.app.domain.model.MeetingPoint
 import com.volna.app.domain.model.MoneyRub
-import com.volna.app.domain.model.Route
-import com.volna.app.domain.model.RouteId
-import com.volna.app.domain.model.RouteType
-import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.SlotStatus
+import com.volna.app.testsupport.slot
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -58,6 +53,49 @@ class DomainPolicyTest {
     }
 
     @Test
+    fun cancelledSlotIsNotAvailableEvenWithFreeSeats() {
+        val cancelledSlot = slot(freeSeats = 5, capacityCap = 8, status = SlotStatus.Cancelled)
+
+        val availability = AvailabilityPolicy.availability(cancelledSlot)
+
+        assertEquals(0, availability.maxSeatsForBooking)
+        assertFalse(availability.canBook)
+    }
+
+    @Test
+    fun cancelledSlotViolatesAvailabilityRegardlessOfSeats() {
+        val draft = com.volna.app.domain.model.BookingDraft(
+            slot = slot(freeSeats = 5, capacityCap = 8, status = SlotStatus.Cancelled),
+            seatsCount = 1,
+            rentalCount = 0,
+        )
+
+        assertEquals(AvailabilityViolation.SlotCancelled, AvailabilityPolicy.validate(draft))
+    }
+
+    @Test
+    fun scheduledSlotWithNoFreeSeatsViolatesAvailability() {
+        val draft = com.volna.app.domain.model.BookingDraft(
+            slot = slot(freeSeats = 0, capacityCap = 8),
+            seatsCount = 1,
+            rentalCount = 0,
+        )
+
+        assertEquals(AvailabilityViolation.NoSeats, AvailabilityPolicy.validate(draft))
+    }
+
+    @Test
+    fun seatsCountOutsideAvailableRangeViolatesAvailability() {
+        val availableSlot = slot(freeSeats = 2, capacityCap = 8)
+
+        val tooFew = com.volna.app.domain.model.BookingDraft(slot = availableSlot, seatsCount = 0, rentalCount = 0)
+        val tooMany = com.volna.app.domain.model.BookingDraft(slot = availableSlot, seatsCount = 3, rentalCount = 0)
+
+        assertEquals(AvailabilityViolation.TooManySeats(2), AvailabilityPolicy.validate(tooFew))
+        assertEquals(AvailabilityViolation.TooManySeats(2), AvailabilityPolicy.validate(tooMany))
+    }
+
+    @Test
     fun bookingPriceUsesSeatAndRentalPrices() {
         val total = BookingPriceCalculator.calculate(
             slot = slot(price = 2_500, rentalPrice = 800),
@@ -88,6 +126,42 @@ class DomainPolicyTest {
     }
 
     @Test
+    fun bookingPriceForBookingWithoutSlotFallsBackToStoredTotal() {
+        val booking = Booking(
+            id = BookingId("booking-1"),
+            slotId = SlotId("slot-1"),
+            clientId = null,
+            seatsCount = 2,
+            rentalCount = 1,
+            status = BookingStatus.Active,
+            priceTotal = MoneyRub(4_200),
+            createdAt = Instant.parse("2026-06-01T12:00:00Z"),
+            cancelledAt = null,
+            slot = null,
+            isFirstBooking = null,
+        )
+
+        assertEquals(MoneyRub(4_200), BookingPriceCalculator.calculate(booking))
+    }
+
+    @Test
+    fun bookingPriceRejectsSeatsCountOutsideAllowedRange() {
+        assertFailsWith<IllegalArgumentException> {
+            BookingPriceCalculator.calculate(slot(), seatsCount = 0, rentalCount = 0)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BookingPriceCalculator.calculate(slot(), seatsCount = 4, rentalCount = 0)
+        }
+    }
+
+    @Test
+    fun bookingPriceRejectsRentalCountAboveSeatsCount() {
+        assertFailsWith<IllegalArgumentException> {
+            BookingPriceCalculator.calculate(slot(), seatsCount = 2, rentalCount = 3)
+        }
+    }
+
+    @Test
     fun exactlyTwoHoursBeforeStartIsEarlyCancellation() {
         val startAt = Instant.parse("2026-07-01T12:00:00Z")
 
@@ -96,30 +170,4 @@ class DomainPolicyTest {
         assertEquals(CancellationKind.Late, CancellationPolicy.classify(startAt - 2.hours + 1.seconds, startAt))
         assertEquals(CancellationKind.UnavailableAfterStart, CancellationPolicy.classify(startAt, startAt))
     }
-
-    private fun slot(
-        freeSeats: Int = 5,
-        capacityCap: Int = 8,
-        freeRentalBoards: Int = 5,
-        price: Int = 2_500,
-        rentalPrice: Int = 800,
-    ): Slot = Slot(
-        id = SlotId("slot-1"),
-        startAt = Instant.parse("2026-07-01T12:00:00Z"),
-        route = Route(
-            id = RouteId("route-1"),
-            name = "Острова и каналы",
-            type = RouteType.Novice,
-            capacityCap = capacityCap,
-            durationMin = 90,
-        ),
-        instructor = Instructor(InstructorId("instructor-1"), "Мария"),
-        totalSeats = capacityCap,
-        freeSeats = freeSeats,
-        freeRentalBoards = freeRentalBoards,
-        price = MoneyRub(price),
-        rentalPrice = MoneyRub(rentalPrice),
-        meetingPoint = MeetingPoint("Лодочная станция", GeoPoint(59.978, 30.262)),
-        status = SlotStatus.Scheduled,
-    )
 }
