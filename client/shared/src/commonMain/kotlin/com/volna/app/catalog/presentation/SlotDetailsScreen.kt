@@ -28,6 +28,8 @@ import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.policy.AvailabilityPolicy
 import com.volna.app.map.RouteMapArtwork
 import com.volna.app.map.RouteMapSheet
+import com.volna.app.share.PlatformShareLauncher
+import com.volna.app.share.ShareLauncher
 import com.volna.app.uikit.icons.Back
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Share
@@ -91,6 +93,7 @@ private fun SlotDetailsContent(
     onBack: () -> Unit,
     onBook: () -> Unit,
     onOpenMap: () -> Unit,
+    shareLauncher: ShareLauncher = PlatformShareLauncher,
 ) {
     val availability = AvailabilityPolicy.availability(slot)
     Column(Modifier.fillMaxSize()) {
@@ -107,7 +110,11 @@ private fun SlotDetailsContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
-                CircleActionButton(icon = Icons.Share, contentDescription = "Поделиться", onClick = {})
+                CircleActionButton(
+                    icon = Icons.Share,
+                    contentDescription = "Поделиться",
+                    onClick = { shareLauncher.shareText(slot.toShareText()) },
+                )
             }
         }
         SlotDetailsSheetContent(
@@ -127,6 +134,10 @@ private fun SlotDetailsContent(
         )
     }
 }
+
+private fun Slot.toShareText(): String =
+    "Прогулка «${route.name}» ${startAt.toSlotCardStartText()}, ${price.value} ₽ за место. " +
+        "Место встречи: ${meetingPoint.title.ifBlank { "уточняется" }}."
 
 @Composable
 private fun SlotDetailsHero(slotId: SlotId) {

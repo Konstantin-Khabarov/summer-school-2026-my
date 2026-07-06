@@ -9,6 +9,7 @@ import com.volna.app.di.initKoin
 import com.volna.app.map.PlatformMapLauncher
 import com.volna.app.push.PlatformPushPermission
 import com.volna.app.push.PlatformPushPreferences
+import com.volna.app.share.PlatformShareLauncher
 import timber.log.Timber
 
 class MainActivity : ComponentActivity() {
@@ -21,6 +22,7 @@ class MainActivity : ComponentActivity() {
         PlatformMapLauncher.initialize(applicationContext)
         PlatformPushPreferences.initialize(applicationContext)
         PlatformPushPermission.initialize(this)
+        PlatformShareLauncher.initialize(applicationContext)
         initKoin()
         setContent {
             VolnaApp()
